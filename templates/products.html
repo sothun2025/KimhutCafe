@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Menu</h2>
+
+<div class="grid">
+  {% for p in products %}
+  <div class="card">
+    <img src="{{ url_for('static', filename='img/' ~ (p.image or 'placeholder.png')) }}" alt="{{ p.name }}">
+    <h3>{{ p.name }}</h3>
+    <div class="muted">{{ p.category }}</div>
+    <div class="price">${{ '%.2f'|format(p.price) }}</div>
+    <form method="post" action="{{ url_for('add_to_cart') }}">
+      <input type="hidden" name="product_id" value="{{ p.id }}">
+      <label>Qty <input type="number" min="1" value="1" name="qty"></label>
+      <button class="btn" type="submit">Add to Cart</button>
+    </form>
+
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
