@@ -65,7 +65,7 @@
   },
    {
     "id": 9,
-    "name": "Passion",
+    "name": "Passion Raw Milk",
     "price": 1,
     "currency": "$",
     "image": "passion.jpg",
@@ -83,7 +83,7 @@
   ,
    {
     "id": 11,
-    "name": "Passion-Mill",
+    "name": "Passion MilK",
     "price": 0.88,
     "currency": "$",
     "image": "passion-mill.jpg",
