@@ -55,17 +55,18 @@ def create_app():
         token = os.getenv("TELEGRAM_BOT_TOKEN")
         chat_id = os.getenv("TELEGRAM_CHAT_ID")
         if not token or not chat_id:
-            print("[Telegram] Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
+            app.logger.warning("[Telegram] Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
             return False
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
         try:
-            resp = requests.post(url, json=payload, timeout=10)
-            resp.raise_for_status()
-            return True
-        except Exception as e:
-            print("[Telegram] Error:", e)
-            return False
+            r = requests.post(url, json=payload, timeout=10)
+            if r.ok:
+                return True
+            app.logger.error("[Telegram] %s %s", r.status_code, r.text)
+        except Exception:
+            app.logger.exception("[Telegram] send failed")
+        return False
 
     def send_invoice_email(customer, items, subtotal):
         if not app.config.get("MAIL_USERNAME"):
@@ -78,13 +79,18 @@ def create_app():
         msg = Message(
             subject="Your Kimhut Café Invoice",
             recipients=[customer["email"]],
-            body=f"Hello {customer['name']},\n\nThanks for your order!\n\n{body}\n\nDelivery to:\n{customer['address']}\nPhone: {customer['phone']}\n\n— Kimhut Café"
+            body=(
+                f"Hello {customer['name']},\n\nThanks for your order!\n\n"
+                f"{body}\n\nDelivery to:\n{customer['address']}\n"
+                f"Phone: {customer['phone']}\n\n— Kimhut Café"
+            ),
         )
         try:
             mail.send(msg)
             return True
-        except Exception as e:
-            print("[Mail] Error:", e)
+        except Exception:
+            # ✅ នេះហើយ: ធ្វើឲ្យ error លេចក្នុង Render Live Tail
+            app.logger.exception("[Mail] send failed")
             return False
 
     # ----- Routes -----
@@ -121,26 +127,6 @@ def create_app():
             return True
         except Exception as e:
             print("[Mail] Error sending contact ACK:", e)
-            return False
-
-    def send_telegram(text):
-        token = os.getenv("TELEGRAM_BOT_TOKEN")
-        chat_id = os.getenv("TELEGRAM_CHAT_ID")
-        if not token or not chat_id:
-            print("[Telegram] Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
-            return False
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
-        try:
-            resp = requests.post(url, json=payload, timeout=10)
-            resp.raise_for_status()
-            return True
-        except Exception as e:
-            print("[Telegram] Error:", e)
-            try:
-                print("[Telegram] Response:", resp.text)
-            except:
-                pass
             return False
 
     @app.route("/contact", methods=["GET", "POST"])
@@ -296,7 +282,3 @@ app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-# if __name__ == "__main__":
-#     app = create_app()
-#     app.run(debug=True)
