@@ -2,35 +2,26 @@ import os
 import json
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-
 from flask import Flask, render_template, session, redirect, url_for, request, flash
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 import requests
+from html import escape
+from config import Config
 
-# Load environment variables from .env if present
 load_dotenv()
-
+mail = Mail()
 
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-secret")
+    app.config.from_object(Config)
+    mail.init_app(app)
 
-    # Flask-Mail configuration
-    app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-    app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", "587"))
-    app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "True").lower() == "true"
-    app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
-    app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
-    app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", app.config.get("MAIL_USERNAME"))
-
-    mail = Mail(app)
-
-    # Load products from JSON
+    # Load products
     with open(os.path.join(app.root_path, "products.json"), "r", encoding="utf-8") as f:
         PRODUCTS = json.load(f)
-        
-    # ----- Helpers -----
+
+    # --- Helpers ---
     def _money(x):
         return Decimal(x).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -52,8 +43,8 @@ def create_app():
         return items, subtotal
 
     def send_telegram(text):
-        token = os.getenv("TELEGRAM_BOT_TOKEN")
-        chat_id = os.getenv("TELEGRAM_CHAT_ID")
+        token = app.config["TELEGRAM_BOT_TOKEN"]
+        chat_id = app.config["TELEGRAM_CHAT_ID"]
         if not token or not chat_id:
             app.logger.warning("[Telegram] Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
             return False
@@ -70,7 +61,7 @@ def create_app():
 
     def send_invoice_email(customer, items, subtotal):
         if not app.config.get("MAIL_USERNAME"):
-            print("[Mail] MAIL settings not configured; skipping send.")
+            app.logger.warning("[Mail] MAIL settings not configured; skipping send.")
             return False
 
         lines = [f"{i['qty']} x {i['name']} @ ${i['price']} = ${i['line_total']}" for i in items]
@@ -89,27 +80,14 @@ def create_app():
             mail.send(msg)
             return True
         except Exception:
-            # ✅ នេះហើយ: ធ្វើឲ្យ error លេចក្នុង Render Live Tail
             app.logger.exception("[Mail] send failed")
             return False
 
-    # ----- Routes -----
-
-    @app.route("/")
-    def home():
-        return render_template("home.html")
-
-    @app.route("/about")
-    def about():
-        return render_template("about.html")
-    # --- Email helper for Contact page ---
-    # --- Email ACK to the customer (Contact page) ---
-    def send_contact_ack(to_email: str, name: str, original_message: str):
-        """Send an acknowledgment email to the customer."""
+    def send_contact_ack(to_email, name, original_message):
         if not to_email:
             return False
         if not app.config.get("MAIL_USERNAME"):
-            print("[Mail] MAIL_* not configured; skipping customer ACK.")
+            app.logger.warning("[Mail] MAIL_* not configured; skipping customer ACK.")
             return False
 
         msg = Message(
@@ -125,9 +103,18 @@ def create_app():
         try:
             mail.send(msg)
             return True
-        except Exception as e:
-            print("[Mail] Error sending contact ACK:", e)
+        except Exception:
+            app.logger.exception("[Mail] Error sending contact ACK")
             return False
+
+    # --- Routes ---
+    @app.route("/")
+    def home():
+        return render_template("home.html")
+
+    @app.route("/about")
+    def about():
+        return render_template("about.html")
 
     @app.route("/contact", methods=["GET", "POST"])
     def contact():
@@ -136,31 +123,18 @@ def create_app():
             email = request.form.get("email", "").strip()
             message = request.form.get("message", "").strip()
 
-            # # 1) Telegram to owner
-            # tg_text = (
-            #     f"<b>Contact</b>\n"
-            #     f"From: {name} <{email}>\n\n"
-            #     f"{message}"
-            # )
-            # tg_ok = send_telegram(tg_text)
-            # 1) Telegram to owner (escape HTML)
-
-            from html import escape
             tg_text = (
                 "<b>Contact</b>\n"
                 f"From: {escape(name)} &lt;{escape(email)}&gt;\n\n"
                 f"{escape(message)}"
             )
             tg_ok = send_telegram(tg_text)
-
-            # 2) Email ACK to customer
             ack_ok = send_contact_ack(email, name, message)
 
             if tg_ok or ack_ok:
                 flash("Thanks! Your message was sent.", "success")
             else:
                 flash("Message received, but notifications are not configured.", "success")
-
             return redirect(url_for("contact"))
 
         return render_template("contact.html")
@@ -173,7 +147,7 @@ def create_app():
         return {
             "categories_nav": cats,
             "selected_nav_category": sel,
-            "search_q": q,  # for pre-filling the search box
+            "search_q": q,
         }
 
     @app.route("/products")
@@ -181,23 +155,14 @@ def create_app():
         selected = request.args.get("category", "All")
         q = (request.args.get("q") or "").strip().lower()
 
-        # Start with all products
         items = PRODUCTS
-
-        # Filter by category
         if selected != "All":
             items = [p for p in items if p["category"].lower() == selected.lower()]
-
-        # Filter by search query (name contains q)
         if q:
             items = [p for p in items if q in p["name"].lower()]
 
         categories = ["All"] + sorted(set(p["category"] for p in PRODUCTS))
-        return render_template("products.html",
-                               products=items,
-                               categories=categories,
-                               selected=selected)
-
+        return render_template("products.html", products=items, categories=categories, selected=selected)
 
     @app.route("/cart")
     def cart():
@@ -253,28 +218,25 @@ def create_app():
                 "email": request.form.get("email", ""),
                 "phone": request.form.get("phone", ""),
             }
-
-            # Telegram + email (unchanged)
             order_text = [
-                             "<b>New Order</b>",
-                             f"Name: {customer['name']}",
-                             f"Email: {customer['email']}",
-                             f"Phone: {customer['phone']}",
-                             f"Address: {customer['address']}",
-                             "",
-                             "Items:"
-                         ] + [f"- {i['qty']} x {i['name']} (${i['line_total']})" for i in items] + [
-                             f"\nSubtotal: ${subtotal}"]
+                "<b>New Order</b>",
+                f"Name: {customer['name']}",
+                f"Email: {customer['email']}",
+                f"Phone: {customer['phone']}",
+                f"Address: {customer['address']}",
+                "",
+                "Items:"
+            ] + [f"- {i['qty']} x {i['name']} (${i['line_total']})" for i in items] + [
+                f"\nSubtotal: ${subtotal}"
+            ]
             send_telegram("\n".join(order_text))
             send_invoice_email(customer, items, subtotal)
 
-            # clear cart + success message
             session["cart"] = {}
             flash("Checkout successful! Thanks for your order.", "success")
             return redirect(url_for("checkout_success"))
 
         return render_template("checkout.html", items=items, subtotal=subtotal)
-
 
     return app
 
