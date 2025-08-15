@@ -212,21 +212,6 @@ def create_app():
                                categories=categories,
                                selected=selected)
 
-    # @app.context_processor
-    # def inject_nav_categories():
-    #     cats = sorted(set(p["category"] for p in PRODUCTS))
-    #     selected = (request.args.get("category") or "All")
-    #     return {"categories_nav": cats, "selected_nav_category": selected}
-
-    # @app.route("/products")
-    # def products():
-    #     selected = request.args.get("category", "All")
-    #     items = [p for p in PRODUCTS if selected == "All" or p["category"].lower() == selected.lower()]
-    #     all_categories = sorted(set(p["category"] for p in PRODUCTS))
-    #     return render_template("products.html",
-    #                            products=items,
-    #                            categories=["All"] + all_categories,
-    #                            selected=selected)
 
     @app.route("/cart")
     def cart():
@@ -304,40 +289,14 @@ def create_app():
 
         return render_template("checkout.html", items=items, subtotal=subtotal)
 
-    # @app.route("/checkout", methods=["GET", "POST"])
-    # def checkout():
-    #     items, subtotal = cart_items()
-    #     if request.method == "POST":
-    #         customer = {
-    #             "name": request.form.get("name", ""),
-    #             "address": request.form.get("address", ""),
-    #             "email": request.form.get("email", ""),
-    #             "phone": request.form.get("phone", ""),
-    #         }
-    #
-    #         # Telegram notify
-    #         order_text = [
-    #             "<b>New Order</b>",
-    #             f"Name: {customer['name']}",
-    #             f"Email: {customer['email']}",
-    #             f"Phone: {customer['phone']}",
-    #             f"Address: {customer['address']}",
-    #             "",
-    #             "Items:"
-    #         ] + [f"- {i['qty']} x {i['name']} (${i['line_total']})" for i in items] + [f"\nSubtotal: ${subtotal}"]
-    #         send_telegram("\n".join(order_text))
-    #
-    #         # Email invoice
-    #         send_invoice_email(customer, items, subtotal)
-    #
-    #         # Clear cart
-    #         session["cart"] = {}
-    #         flash("Order placed! Invoice sent by email (if configured).", "success")
-    #         return redirect(url_for("home"))
-    #
-    #     return render_template("checkout.html", items=items, subtotal=subtotal)
-    #
+
     return app
+
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     app.run(debug=True)
+
+# if __name__ == "__main__":
+#     app = create_app()
+#     app.run(debug=True)
