@@ -4,24 +4,31 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from flask import Flask, render_template, session, redirect, url_for, request, flash
 from flask_mail import Mail, Message
-from dotenv import load_dotenv
 import requests
-from html import escape
-from config import Config
 
-load_dotenv()
-mail = Mail()
+from config import DevelopmentConfig, ProductionConfig, TestingConfig  # <-- new
 
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
-    app.config.from_object(Config)
-    mail.init_app(app)
 
-    # Load products
+    # ---- Config selection (from .env -> APP_ENV) ----
+    env_name = (os.getenv("APP_ENV") or "development").lower()
+    cfg = {
+        "development": DevelopmentConfig,
+        "production": ProductionConfig,
+        "testing": TestingConfig,
+    }.get(env_name, DevelopmentConfig)
+
+    app.config.from_object(cfg)
+
+    # Init Flask-Mail after config is loaded
+    mail = Mail(app)
+
+    # Load products from JSON
     with open(os.path.join(app.root_path, "products.json"), "r", encoding="utf-8") as f:
         PRODUCTS = json.load(f)
 
-    # --- Helpers ---
+    # ----- Helpers -----
     def _money(x):
         return Decimal(x).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -43,8 +50,8 @@ def create_app():
         return items, subtotal
 
     def send_telegram(text):
-        token = app.config["TELEGRAM_BOT_TOKEN"]
-        chat_id = app.config["TELEGRAM_CHAT_ID"]
+        token = app.config.get("TELEGRAM_BOT_TOKEN")
+        chat_id = app.config.get("TELEGRAM_CHAT_ID")
         if not token or not chat_id:
             app.logger.warning("[Telegram] Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
             return False
@@ -61,7 +68,7 @@ def create_app():
 
     def send_invoice_email(customer, items, subtotal):
         if not app.config.get("MAIL_USERNAME"):
-            app.logger.warning("[Mail] MAIL settings not configured; skipping send.")
+            print("[Mail] MAIL settings not configured; skipping send.")
             return False
 
         lines = [f"{i['qty']} x {i['name']} @ ${i['price']} = ${i['line_total']}" for i in items]
@@ -83,11 +90,23 @@ def create_app():
             app.logger.exception("[Mail] send failed")
             return False
 
-    def send_contact_ack(to_email, name, original_message):
+    # ----- Routes -----
+
+    @app.route("/")
+    def home():
+        return render_template("home.html")
+
+    @app.route("/about")
+    def about():
+        return render_template("about.html")
+
+    # --- Email helper for Contact page ---
+    def send_contact_ack(to_email: str, name: str, original_message: str):
+        """Send an acknowledgment email to the customer."""
         if not to_email:
             return False
         if not app.config.get("MAIL_USERNAME"):
-            app.logger.warning("[Mail] MAIL_* not configured; skipping customer ACK.")
+            print("[Mail] MAIL_* not configured; skipping customer ACK.")
             return False
 
         msg = Message(
@@ -103,18 +122,9 @@ def create_app():
         try:
             mail.send(msg)
             return True
-        except Exception:
-            app.logger.exception("[Mail] Error sending contact ACK")
+        except Exception as e:
+            print("[Mail] Error sending contact ACK:", e)
             return False
-
-    # --- Routes ---
-    @app.route("/")
-    def home():
-        return render_template("home.html")
-
-    @app.route("/about")
-    def about():
-        return render_template("about.html")
 
     @app.route("/contact", methods=["GET", "POST"])
     def contact():
@@ -123,6 +133,7 @@ def create_app():
             email = request.form.get("email", "").strip()
             message = request.form.get("message", "").strip()
 
+            from html import escape
             tg_text = (
                 "<b>Contact</b>\n"
                 f"From: {escape(name)} &lt;{escape(email)}&gt;\n\n"
@@ -135,6 +146,7 @@ def create_app():
                 flash("Thanks! Your message was sent.", "success")
             else:
                 flash("Message received, but notifications are not configured.", "success")
+
             return redirect(url_for("contact"))
 
         return render_template("contact.html")
@@ -156,13 +168,20 @@ def create_app():
         q = (request.args.get("q") or "").strip().lower()
 
         items = PRODUCTS
+
         if selected != "All":
             items = [p for p in items if p["category"].lower() == selected.lower()]
+
         if q:
             items = [p for p in items if q in p["name"].lower()]
 
         categories = ["All"] + sorted(set(p["category"] for p in PRODUCTS))
-        return render_template("products.html", products=items, categories=categories, selected=selected)
+        return render_template(
+            "products.html",
+            products=items,
+            categories=categories,
+            selected=selected
+        )
 
     @app.route("/cart")
     def cart():
@@ -178,6 +197,20 @@ def create_app():
             count = 0
         return {"cart_count": count}
 
+    # @app.route("/add-to-cart", methods=["POST"])
+    # def add_to_cart():
+    #     pid = request.form.get("product_id")
+    #     qty = int(request.form.get("qty", "1"))
+    #     cart = session.get("cart", {})
+    #     cart[pid] = cart.get(pid, 0) + qty
+    #     session["cart"] = cart
+    #     flash("Item added to cart.", "success")
+    #     return redirect(url_for("products"))
+    # app.py (inside create_app)
+
+    # app.py
+    from flask import jsonify
+
     @app.route("/add-to-cart", methods=["POST"])
     def add_to_cart():
         pid = request.form.get("product_id")
@@ -185,6 +218,14 @@ def create_app():
         cart = session.get("cart", {})
         cart[pid] = cart.get(pid, 0) + qty
         session["cart"] = cart
+
+        cart_count = sum(int(q) for q in cart.values() if str(q).isdigit())
+
+        # If request came via fetch/AJAX, return JSON to trigger the modal
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.accept_json:
+            return jsonify({"ok": True, "cart_count": cart_count})
+
+        # Fallback for non-JS
         flash("Item added to cart.", "success")
         return redirect(url_for("products"))
 
@@ -218,6 +259,7 @@ def create_app():
                 "email": request.form.get("email", ""),
                 "phone": request.form.get("phone", ""),
             }
+
             order_text = [
                 "<b>New Order</b>",
                 f"Name: {customer['name']}",
@@ -225,7 +267,7 @@ def create_app():
                 f"Phone: {customer['phone']}",
                 f"Address: {customer['address']}",
                 "",
-                "Items:"
+                "Items:",
             ] + [f"- {i['qty']} x {i['name']} (${i['line_total']})" for i in items] + [
                 f"\nSubtotal: ${subtotal}"
             ]
@@ -235,7 +277,6 @@ def create_app():
             session["cart"] = {}
             flash("Checkout successful! Thanks for your order.", "success")
             return redirect(url_for("checkout_success"))
-
         return render_template("checkout.html", items=items, subtotal=subtotal)
 
     return app
@@ -243,4 +284,4 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()

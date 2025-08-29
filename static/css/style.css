@@ -375,3 +375,88 @@ input:focus, textarea:focus {
   .btn{ padding:8px 12px; }
   input, textarea{ padding:9px; }
 }
+
+
+/* Popup modal */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none;
+         align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+.modal.show { display: flex; }
+
+.modal__dialog { width: min(520px, 92vw); background: #fff; border-radius: 14px;
+                 box-shadow: 0 12px 40px rgba(0,0,0,.25); padding: 28px 24px; text-align: center; }
+.modal__icon { width: 96px; height: 96px; line-height: 96px; margin: 0 auto 14px; border-radius: 50%;
+               background: #e9f7ef; color: #37c172; font-size: 54px; font-weight: 700; }
+.modal__title { margin: 10px 0 20px; font-size: 28px; line-height: 1.2; color: #222; }
+.modal__btn { border: 0; border-radius: 10px; padding: 10px 22px; background: #6c63ff;
+              color: #fff; font-weight: 600; cursor: pointer; }
+.modal__btn:focus { outline: 3px solid #b7b3ff; outline-offset: 2px; }
+
+/* Modal fade + zoom */
+.modal.show {
+  display: flex;
+  animation: fadeIn 0.35s ease;
+}
+.modal__dialog {
+  transform: scale(0.8);
+  animation: popIn 0.35s ease forwards;
+}
+@keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+@keyframes popIn { from {transform: scale(0.8); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+
+/* Icon wrapper */
+.modal__icon {
+  width: 90px; height: 90px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: #e9f7ef;
+  display: flex; align-items: center; justify-content: center;
+  animation: popScale 0.5s ease forwards 1s;
+  transform: scale(0.9);
+}
+
+/* SVG base */
+.checkmark {
+  width: 64px; height: 64px;
+  stroke: #37c172;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Circle animation */
+.checkmark__circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 4;
+  stroke: #37c172;
+  animation: strokeCircle 0.6s ease forwards;
+}
+
+/* Check animation */
+.checkmark__check {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: strokeCheck 0.4s ease forwards 0.6s;
+}
+
+/* Text fade-in after check */
+.modal__title, .modal__subtitle {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeUp 0.4s ease forwards;
+}
+.modal__title { animation-delay: 0.5s; }
+.modal__subtitle { animation-delay: 1s; }
+
+@keyframes strokeCircle { to { stroke-dashoffset: 0; } }
+@keyframes strokeCheck { to { stroke-dashoffset: 0; } }
+@keyframes popScale {
+  0%   { transform: scale(0.9); }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Popup modal */
