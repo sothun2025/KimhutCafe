@@ -56,9 +56,206 @@
 
   {% block content %}{% endblock %}
 </main>
+<footer class="coffee-footer">
+  <style>
+    .coffee-footer {
+      background: url('{{ url_for('static', filename='img/fotkakavyVali.jpeg') }}') center/cover no-repeat;
+      color: #fff;
+      margin-top: 2rem;
+      font-family: 'Poppins', sans-serif;
+    }
 
-<footer class="footer">&copy; {{ 2025 }} Kimhut Caf&eacute; · Built By Mrr.sothun</footer>
+    .footer-inner {
+      background: rgba(0,0,0,0.7);
+      padding: 60px 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 40px;
+    }
 
+    .footer-col h4 {
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      color: #ffb84d;
+    }
+
+    .footer-col p,
+    .footer-col li,
+    .footer-col a {
+      color: #eee;
+      font-size: 0.95rem;
+      line-height: 1.8;
+      text-decoration: none;
+    }
+
+    .footer-col ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .footer-col a:hover {
+      color: #ffcc66;
+    }
+
+    /* Icons */
+    .social-links {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .social-links a {
+      width: 38px;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #ffb84d;
+      border-radius: 4px;
+      transition: all 0.3s;
+      color: #ffb84d;
+      font-size: 18px;
+    }
+
+    .social-links a:hover {
+      background: #ffb84d;
+      color: #000;
+    }
+
+    /* Newsletter */
+    .newsletter-form {
+      display: flex;
+      margin-top: 0.8rem;
+    }
+
+    .newsletter-form input {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 4px 0 0 4px;
+      outline: none;
+      font-size: 0.95rem;
+    }
+
+    .newsletter-form button {
+      padding: 10px 20px;
+      background: #ffb84d;
+      color: #000;
+      border: none;
+      border-radius: 0 4px 4px 0;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .newsletter-form button:hover {
+      background: #ffc966;
+    }
+
+    .footer-bottom {
+      background: #1e1a18;
+      text-align: center;
+      padding: 16px 10px;
+      font-size: 0.9rem;
+      color: #ccc;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .footer-bottom a {
+      color: #ffb84d;
+      text-decoration: none;
+    }
+
+    .footer-bottom a:hover {
+      text-decoration: underline;
+    }
+     /* --- BACK TO TOP BUTTON --- */
+    .to-top {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      background: #ffb84d;
+      color: #000;
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: 0.3s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      z-index: 999;
+    }
+
+    .to-top:hover {
+      background: #ffc966;
+      transform: translateY(-3px);
+    }
+
+    .to-top.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.8);
+    }
+  </style>
+
+  <div class="footer-inner">
+    <!-- Column 1: Contact -->
+    <div class="footer-col">
+      <h4>Get In Touch</h4>
+      <ul>
+        <li>📍 <a href="https://maps.app.goo.gl/LfLCEv7Uv5fhF4sC6?g_st=ipc">Chhnang, Cambodia</a></li>
+        <li>📞 <a href="tel:+855888356210">+855 016 356 660</a></li>
+        <li>✉️ <a href="mailto:{{ config.get('MAIL_DEFAULT_SENDER','info@kimhutcafe.com') }}">info@kimhutcafe.com</a></li>
+      </ul>
+    </div>
+
+    <!-- Column 2: Social -->
+    <div class="footer-col">
+      <h4>Follow Us</h4>
+      <p>Stay connected for new flavors, offers, and events.</p>
+      <div class="social-links">
+        <a href="https://www.facebook.com/share/1Cwnap99Pt/?mibextid=wwXIfr"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://t.me/NgamKimhut"><i class="fab fa-telegram-plane"></i></a>
+        <a href="https://www.instagram.com/ngamkimhut/#"><i class="fab fa-instagram"></i></a>
+      </div>
+    </div>
+
+    <!-- Column 3: Hours -->
+    <div class="footer-col">
+      <h4>Open Hours</h4>
+      <ul>
+        <li>Monday – Friday<br>8:00 AM – 8:00 PM</li>
+        <li>Saturday – Sunday<br>9:00 PM – 8:00 PM</li>
+      </ul>
+    </div>
+
+    <!-- Column 4: Newsletter -->
+    <div class="footer-col">
+      <h4>Newsletter</h4>
+      <p>Join our coffee lovers’ list for updates & promotions.</p>
+      <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Thank you for subscribing!');">
+        <input type="email" placeholder="Your Email" required>
+        <button type="submit">Sign Up</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    © <span id="year"></span> Kimhut Café · Designed by <a href="#">TST</a>
+  </div>
+ <button id="toTop" class="to-top hidden" aria-label="Back to top">↑</button>
+
+{#    show icon fb, te, in#}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+{#  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>#}
+
+</footer>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('navToggle');
@@ -95,6 +292,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+// Smooth scroll to top
+document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Smooth scroll to top
+    const toTop = document.getElementById("toTop");
+    window.addEventListener("scroll", () => {
+      if (window.scrollY > 200) toTop.classList.remove("hidden");
+      else toTop.classList.add("hidden");
+    });
+    toTop.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
 </script>
 
 </body>
